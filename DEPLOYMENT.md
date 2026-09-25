@@ -53,6 +53,86 @@ GET /api/v1/health
 
 A healthy response has HTTP 200 and `data.database === "up"`.
 
+## Vercel deployment
+
+Status: **not deployed yet**. The repository is committed locally, but a Vercel
+release is blocked on two external items:
+
+1. Vercel account access — `npx vercel whoami` reports `Logged out`; run
+   `npx vercel login` (browser flow) once.
+2. A MySQL 8 instance the deployment can reach. Serverless functions cannot
+   reach `127.0.0.1`, so the local development instance on port 3307 is not
+   usable; a managed MySQL is required for a functional deployment.
+
+Import the GitHub repository (framework preset **Next.js**, root directory
+`./`, default install/build commands — do not override them) so that every push
+to `main` produces a deployment. CLI alternative: `npx vercel link` followed by
+`npx vercel --prod`.
+
+Required environment variables in the Vercel project:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | `mysql://<least-privilege-user>:<password>@<managed-host>:3306/<database>` |
+| `SESSION_SECRET` | at least 32 random bytes |
+| `APP_URL` | the exact `https://` deployment origin (used for cookie `Secure` and CSRF origin checks) |
+| `SESSION_TTL_HOURS`, `AUTH_RATE_LIMIT_*`, `DEFAULT_CURRENCY`, `PAYROLL_WORKING_DAYS` | optional; schema defaults apply |
+| `STORAGE_DRIVER=s3` (+ `S3_*`) | required for working document upload — see below |
+| `EMAIL_DRIVER=smtp` (+ `SMTP_*`) | required for real email delivery |
+| `TRUST_PROXY` | leave unset — see "Client address and proxies" |
+
+Verified build behaviour:
+
+- `DATABASE_URL` is consumed at build time by `prisma generate` (`prebuild`), so
+  a build without it fails with
+  `PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL`
+  (reproduced locally by building with no `.env` file present, which is the
+  state of a fresh CI checkout because `.env` is ignored).
+- The build performs no live database queries: a well-formed but unreachable
+  `DATABASE_URL` still builds successfully. The database therefore has to exist
+  for **runtime**, not for the build.
+- `SESSION_SECRET` and `APP_URL` are validated by `src/lib/env.ts` on first
+  import; the application refuses to start without them.
+
+Vercel specifics:
+
+- The filesystem is read-only apart from `/tmp`, so `STORAGE_DRIVER=local`
+  cannot persist documents. Configure S3-compatible object storage, or accept
+  that document upload is non-functional while it stays on `local`.
+- Vercel's Next.js builder runs its own runtime. `output: "standalone"` in
+  `next.config.ts`, the `Dockerfile`, and `scripts/start.mjs` (used by
+  `npm start`) exist for self-hosted/Docker releases and are not used by Vercel.
+- Migrations are never run by the build. Run `npm run db:deploy` against the
+  production database from a controlled job before or during release.
+- After the first successful deployment, run the post-deploy acceptance
+  checklist below against the real `https://` origin, including
+  `SMOKE_BASE_URL=https://<domain> npm run smoke`.
+
+Local build path (`vercel deploy --temporary`) and local installs:
+
+- The unauthenticated `--temporary` deployment builds **locally** and uploads the
+  result, so it does not exercise Vercel's remote build image. That local build
+  writes symlinks into `.vercel/output/functions`, which on Windows requires
+  Developer Mode or elevation; without it the run ends with
+  `Error: EPERM: operation not permitted, symlink '...\admin.func' -> ...`.
+  Vercel's remote Linux builders are not affected by this.
+- Everything up to that step passes under the CLI pipeline: dependencies
+  install, Next.js is detected, `npm run build` completes, and all serverless
+  functions are created — provided `DATABASE_URL` is present in the build
+  environment (see the build behaviour above).
+- Keep the dependency-script allowlist in `package.json` (`allowScripts`) or a
+  project `.npmrc`. A **user-level** `~/.npmrc` entry such as
+  `allow-scripts=opencode-ai` is ignored by a normal project install (npm warns
+  that the `package.json` field wins) but makes the CLI's install step fail with
+  `npm error code EALLOWSCRIPTS: --allow-scripts is not allowed in
+  project-scoped installs`, because the CLI passes npm configuration through the
+  environment. Remove that user-level entry or scope it to the tool that needs
+  it; it has no effect on Vercel's remote builders.
+
+A first genuine production deployment therefore still requires the account login
+and the production environment variables listed above; `vercel deploy
+--temporary` is only a local pipeline probe.
+
 ## Object storage
 
 Private candidate/employee documents must never be publicly readable. Choose one driver:

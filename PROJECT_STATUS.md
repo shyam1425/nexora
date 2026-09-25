@@ -27,6 +27,7 @@
 - Generic application status mutations are now restricted to manual screening/selection/rejection/withdrawal transitions; interview, offer, candidate response, and joining states can only be created by their owning transactions.
 - Reproducible npm manifest/lockfile, patched database tooling overrides, standard lint/typecheck/test/build/database/smoke scripts, zero full or production audit findings, and verified standalone production output.
 - Security response headers and a real standalone production-runtime smoke check against the persistent MySQL database.
+- Repository baseline: the tree is now under version control on `main` (initial commit `577f6d8`, 215 tracked files). The staged index was audited before committing: no `.env`/`.env.local`/`.env.production`, no `node_modules`, `.next`, `storage/`, or `devdb/` content, no private keys, and no cloud/SMTP/database credentials. The only committed literal is the bootstrap password of the loopback-only development database in `scripts/dev-db.ps1` (that instance listens on `127.0.0.1:3307` only, is started by that script, and is unrelated to any production credential).
 
 ## Verification status
 
@@ -41,6 +42,11 @@
 | `npm audit` | PASS — 0 vulnerabilities (full dependency tree) |
 | `npm audit --omit=dev` | PASS — 0 vulnerabilities (production dependency tree) |
 | Production deployment | NOT VERIFIED — no staging/production domain provided |
+| Local Git baseline | PASS — `main` at `577f6d8`, 215 tracked files, clean working tree, no secrets in the index |
+| GitHub push | BLOCKED — the target account `shyam1425i` does not exist (GitHub API and profile return 404); `git push` fails with `remote: Repository not found.` / `fatal: repository 'https://github.com/shyam1425i/nexora.git/' not found`. The only GitHub credential stored on this machine authenticates as `shyam1425` (`repo` scope), which matches the commit identity |
+| Vercel CLI / access | BLOCKED — `npx vercel whoami` (CLI 60.0.1) reports `Logged out`; a browser `vercel login` is required before any deployment or remote build can be created |
+| Vercel pipeline probe | PARTIAL — with `vercel deploy --temporary` (local build, no login required) the dependency install, Next.js detection, `npm run build`, and serverless-function creation all pass; the run stops at the CLI's local output step with `Error: EPERM: operation not permitted, symlink '.vercel/output/functions/admin.func'`, which is a Windows symlink-privilege limitation of that local path and does not affect Vercel's remote Linux builders |
+| Vercel build requirements | VERIFIED — a build with no `.env` present fails at `prebuild` with `PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL`; with a well-formed but unreachable `DATABASE_URL` the build succeeds (exit 0), so the production build needs the variable present, not a live database |
 | Live S3/MinIO bucket | NOT VERIFIED — adapter covered by unit and socket-level tests; needs real credentials |
 | Client address trust | PASS — forged `X-Forwarded-For`/`X-Real-IP` neither widens rate-limit buckets nor reaches `AuditLog.ipAddress` (verified against the standalone server); trusted-proxy mode verified with `TRUST_PROXY=true` |
 | End-to-end browser acceptance | PARTIAL — service/API workflow covered; full HTTPS browser run pending deployment configuration |
@@ -54,13 +60,17 @@
 
 ## Blocked / external configuration
 
-- Production domain, HTTPS termination, MySQL credentials, SMTP credentials, and private object-storage credentials are not available in this workspace.
+- GitHub: the account named in the deployment brief, `shyam1425i`, does not exist. The repository was therefore published on the authenticated account as `https://github.com/shyam1425/nexora` (public, confirmed by the operator), with `main` tracking `origin/main` at `577f6d8`.
+- Local npm configuration: this machine's user-level `~/.npmrc` contains `allow-scripts=opencode-ai`, which npm 11.17 rejects during project-scoped installs with `npm error code EALLOWSCRIPTS` (the `package.json` `allowScripts` field is the supported place for that policy). A normal `npm install` in the project only warns and succeeds, but the Vercel CLI's install step fails until that user-level line is removed or scoped to the tool that needs it.
+- Vercel access: the CLI on this machine is logged out (`npx vercel whoami` → `Logged out`). A browser `vercel login` or a deployment token is required.
+- A managed MySQL 8 reachable from Vercel is required for a functional deployment. The local development instance on `127.0.0.1:3307` cannot be reached from serverless functions, and a release built against an unreachable database would boot but fail on every database-backed route, so no Vercel release was produced rather than publishing a non-functional one.
+- Production domain, HTTPS termination, SMTP credentials, and private object-storage credentials are not available in this workspace.
 - Payroll processing, tax automation, biometric attendance, WhatsApp/SMS, AI matching, and billing are intentionally post-MVP or pending explicit scope approval.
 
 ## Next highest-priority tasks
 
-1. Add deployed HTTPS E2E smoke tests and staging deployment configuration.
-2. Verify the implemented S3 adapter against the chosen production bucket (credentials, CORS-free private access, lifecycle/encryption policies).
-3. Configure and verify production SMTP, database, HTTPS, and object-storage secrets.
+1. Run `npx vercel login` (browser flow), connect the GitHub repository to a Vercel project (Next.js preset, root `./`), set `DATABASE_URL`, `SESSION_SECRET`, and `APP_URL` for Production, deploy, and then run the post-deploy acceptance checklist including `SMOKE_BASE_URL=https://<domain> npm run smoke`.
+2. Configure `STORAGE_DRIVER=s3` (uploads) and `EMAIL_DRIVER=smtp` (email) on the deployed environment, then verify document upload/download authorization and real email delivery.
+3. Add deployed HTTPS end-to-end browser acceptance automation once a real domain exists.
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md), [API.md](./API.md), [SECURITY.md](./SECURITY.md), and [DEPLOYMENT.md](./DEPLOYMENT.md) for the current implementation contract.
