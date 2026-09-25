@@ -52,7 +52,7 @@ async function seedLeaveTypes(): Promise<void> {
 
 async function seedSettings(): Promise<void> {
   const settings: Array<{ key: string; value: string }> = [
-    { key: 'company.name', value: process.env.APP_NAME ?? '360 WorkFox Tech' },
+    { key: 'company.name', value: process.env.APP_NAME ?? 'NEXORA' },
     { key: 'company.currency', value: process.env.DEFAULT_CURRENCY ?? 'INR' },
     { key: 'payroll.workingDays', value: process.env.PAYROLL_WORKING_DAYS ?? '22' },
     { key: 'jobs.publicListingEnabled', value: 'true' },

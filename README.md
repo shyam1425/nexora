@@ -9,7 +9,7 @@ client requirement → job → candidate application → recruiter screening
 → submission → interview → offer → joining → employee record
 ```
 
-The application uses real MySQL persistence, server-side authorization, private document authorization, notifications, and audit records. It is **not yet production-ready**: no staging/production domain, production credentials, SMTP verification, or private object-storage credentials are configured in this workspace.
+The application uses real MySQL persistence, server-side authorization, private document authorization, notifications, and audit records. Production is live at https://nexora-three-woad.vercel.app and releases deploy automatically from `main` through the Vercel GitHub integration (`source=git`). Real SMTP delivery and S3-compatible object storage still require operator credentials.
 
 ## Stack
 
@@ -37,6 +37,12 @@ npm run dev
 Open `http://localhost:3000`.
 
 The repository includes `D:\project\scripts\dev-db.ps1` for a dedicated local MySQL instance on port `3307`. It is isolated from the machine's normal MySQL service. Do not use its reset action against any shared or production database.
+
+`npm test` runs unit suites plus MySQL-backed integration suites, so the development database must be running. `tests/setup.ts` warns when `DATABASE_URL` is unreachable. Start it with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/dev-db.ps1 -Action start
+```
 
 ## Useful commands
 
@@ -67,7 +73,7 @@ The repository includes `D:\project\scripts\dev-db.ps1` for a dedicated local My
 
 ## Configuration and deployment
 
-Copy `D:\project\.env.example` to a local `.env` only for development. Production secrets must come from the hosting platform's secret manager. See:
+Copy `D:\project\.env.example` to a local `.env` only for development. Production secrets must come from the hosting platform's secret manager. Releases are triggered by pushing to `main`; project `nexora` requires cryptographically verified commits, so commits must be **signed** (`commit.gpgsign=true`) or Vercel cancels the deployment. See:
 
 - `D:\project\DEPLOYMENT.md` — release, HTTPS, Docker, rollback, and acceptance steps
 - `D:\project\SECURITY.md` — controls and known limitations

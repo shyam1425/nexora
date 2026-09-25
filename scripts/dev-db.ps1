@@ -1,4 +1,4 @@
-# 360 WorkFox Tech - local development MySQL instance manager
+# NEXORA - local development MySQL instance manager
 #
 # Creates and runs a DEDICATED MySQL 8 instance on port 3307 with its data
 # directory inside the project (gitignored `devdb/`). The machine's own

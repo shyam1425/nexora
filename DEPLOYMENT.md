@@ -30,8 +30,8 @@ install locked dependencies
 Example container build:
 
 ```bash
-docker build -t workfox-tech:release .
-docker run --rm -p 3000:3000 --env-file .env.production workfox-tech:release
+docker build -t nexora:release .
+docker run --rm -p 3000:3000 --env-file .env.production nexora:release
 ```
 
 The included `Dockerfile` produces a Next standalone runtime. Run migrations as a release/init task using the build image or a controlled CI job; the runtime container does not automatically mutate the database.
@@ -62,10 +62,10 @@ Status: **DEPLOYED and VERIFIED in Production on Vercel with live Aiven MySQL da
 | Vercel account | `shyam1425`, team/scope `shyam-9374` (Hobby), CLI 60.0.1 |
 | Vercel project | `nexora` (`prj_AKKa0YciwOQOBeBeHsmrfsagHdUF`) |
 | Project settings | framework preset **Next.js**, root directory `./`, Node.js 24.x, region `iad1` (default install/build commands, not overridden) |
-| Active deployment | `dpl_9N14xgmjBgP27CtoQd45tNa6BVYd`, target `production`, status **● Ready** |
+| Active deployment | created automatically from the newest commit on `main` (`source=git`, target `production`); inspect with `npx vercel ls nexora` |
 | Public production URL | `https://nexora-three-woad.vercel.app` (verified 200, landing page, careers, candidate dashboard) |
-| Immutable deployment URL | `https://nexora-8pgt8j8y5-shyam-9374.vercel.app` |
-| Remote Linux build | PASS — `Build Completed in /vercel/output`, duration 40s, all serverless functions created |
+| Automatic deployment evidence | `dpl_EtSkwDYUJPhH36brPNLUeoRcRwkv` — commit `2b1ee83`, `target=production`, `source=git`, **● Ready** in 42.6s, aliased to the production URL; produced by `git push origin main` with no `vercel --prod` |
+| Remote Linux build | PASS — `Build Completed in /vercel/output`, all serverless functions created |
 | Production environment variables | **Configured & Verified** (`DATABASE_URL` [Secret], `DATABASE_SSL_CA` [Secret], `SESSION_SECRET` [Secret], `APP_URL` [Config]) |
 | Production database | **Aiven MySQL 8.4.8** with TLS (`nexora-mysql-shyam-1209.k.aivencloud.com:18737`), Project CA verified, schema migration `20260924081941_init` up-to-date |
 | Deployed smoke | **7/7 checks passed** — `SMOKE_BASE_URL=https://nexora-three-woad.vercel.app npm run smoke` |
@@ -75,7 +75,7 @@ Status: **DEPLOYED and VERIFIED in Production on Vercel with live Aiven MySQL da
 
 Verified against the deployed origin (real HTTPS):
 
-- `GET /` → 200 with real server-rendered output (`<title>360 WorkFox Tech | Workforce. Recruitment. HR solutions.</title>`).
+- `GET /` → 200 with real server-rendered output (`<title>NEXORA | Workforce. Recruitment. HR solutions.</title>`).
 - Security headers present: `Content-Security-Policy` set, `X-Frame-Options: DENY`.
 - `GET /api/v1/health` → **200 OK** (`{"status":"ok","database":"up"}`).
 - `GET /careers` → **200 OK** with live database query.

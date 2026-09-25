@@ -1,8 +1,8 @@
-# 360 WorkFox Tech — Project Status
+# NEXORA — Project Status
 
 **Last updated:** 2026-09-25
 **Current phase:** Production MVP — core recruitment workflow implementation
-**Overall status:** Partially implemented; not yet production-ready
+**Overall status:** Production MVP live at `https://nexora-three-woad.vercel.app` with automatic GitHub→Vercel deployment from `main`; remaining gaps are operator-credential features (SMTP delivery, live S3-compatible bucket)
 
 ## Completed and verified
 
@@ -42,11 +42,11 @@
 | `npm test` | PASS — 18 files, 78 tests at last run |
 | `npm run build` | PASS — standalone production build completed |
 | `npm run smoke` | PASS — 7/7 checks against an isolated standalone server and live MySQL |
-| Local verification prerequisites | `npm test`, `npm run smoke`, and `npm start` need the dedicated development MySQL running (`powershell -ExecutionPolicy Bypass -File scripts/dev-db.ps1 -Action start`, loopback port 3307) **and** a clean shell environment: `dotenv` never overrides an existing process variable, so a stale `DATABASE_URL` exported in the shell silently redirects the suite to another database (observed: `db:status` reporting `probe_db` at `127.0.0.1:3306` and Prisma `pool timeout` on every integration test until the variable was removed) |
+| Local verification prerequisites | `npm test`, `npm run smoke`, and `npm start` need the dedicated development MySQL running (`powershell -ExecutionPolicy Bypass -File scripts/dev-db.ps1 -Action start`, loopback port 3307) **and** a clean shell environment: `dotenv` never overrides an existing process variable, so a stale `DATABASE_URL` exported in the shell silently redirects the suite to another database (observed: `db:status` reporting `probe_db` at `127.0.0.1:3306` and Prisma `pool timeout` on every integration test until the variable was removed). `tests/setup.ts` now probes the `DATABASE_URL` host/port before the suites run and prints the exact `dev-db.ps1 -Action start` command when it is unreachable |
 | Clean `npm ci` | PASS — temporary clean install reproduced the declared dependency tree |
 | `npm audit` | PASS — 0 vulnerabilities (full dependency tree) |
 | `npm audit --omit=dev` | PASS — 0 vulnerabilities (production dependency tree) |
-| Production deployment | PASS — live on Vercel as project `nexora` (`shyam-9374/nexora`, active deployment `dpl_9N14xgmjBgP27CtoQd45tNa6BVYd`, target `production`, status Ready) at `https://nexora-three-woad.vercel.app`, built by Vercel's remote Linux builder (`Build Completed in /vercel/output`, 40s). Fully connected to live Aiven MySQL with TLS and custom CA; `/api/v1/health` returns HTTP 200 `database: "up"`, smoke tests pass 7/7, and full browser E2E test suite passes 8/8 |
+| Production deployment | PASS — live on Vercel as project `nexora` (`shyam-9374/nexora`) at `https://nexora-three-woad.vercel.app`. Releases are created automatically from pushes to `main` (`source=git`, verified commits only); the deployment carrying the newest `main` commit is the active production deployment. Fully connected to live Aiven MySQL with TLS and custom CA; `/api/v1/health` returns HTTP 200 `database: "up"` and the deployed smoke suite passes 7/7 |
 | Local Git baseline | PASS — `main` advanced to the current tip, 217 tracked files, clean working tree, no secrets in the index or anywhere in the history |
 | GitHub push | PASS — `main` is published at https://github.com/shyam1425/nexora (public), local `HEAD` == `origin/main`, 217 tracked files; the credential on this machine authenticates as `shyam1425` (`repo` scope) and matches the commit identity |
 | Vercel access | PASS — CLI 60.0.1 authenticated as `shyam1425` on team `shyam-9374` (Hobby); project `nexora` linked via `.vercel/project.json` (gitignored) with framework preset Next.js, root directory `./`, Node.js 24.x, region `iad1` |

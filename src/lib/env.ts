@@ -22,7 +22,7 @@ const envSchema = z.object({
     .min(32, 'SESSION_SECRET must be at least 32 characters long'),
   SESSION_TTL_HOURS: z.coerce.number().int().positive().max(720).default(12),
 
-  APP_NAME: z.string().min(1).default('360 WorkFox Tech'),
+  APP_NAME: z.string().min(1).default('NEXORA'),
   APP_URL: z.string().url().default('http://localhost:3000'),
 
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
