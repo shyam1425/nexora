@@ -37,6 +37,7 @@ yarn-error.log*
 # local databases and private uploads
 /devdb/
 /storage/
+/certs/
 
 # vercel
 .vercel

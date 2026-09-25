@@ -237,6 +237,59 @@ record above). A **functional** production release still requires the production
 environment variables listed below; `vercel deploy --temporary` remains only a
 local pipeline probe.
 
+## Production database (Aiven MySQL)
+
+The production database is a managed Aiven for MySQL 8 service. The table records
+what is verified; the paragraphs below state precisely what is not.
+
+| Item | Value |
+|---|---|
+| Host / port | `nexora-mysql-shyam-1209.k.aivencloud.com:18737` (public DNS resolves to `159.89.160.201`) |
+| Database / user | `defaultdb` / `avnadmin` |
+| TLS | enforced by the service; `DATABASE_URL` must carry `?ssl=true` |
+| CA certificate | `certs/aiven-ca.pem` — Aiven Project CA, `CN=7a4b7ba9-5338-4a61-b16d-a2dc958ce8cb Project CA`, self-signed, `CA:TRUE`, valid 2026-09-25 → 2036-09-22, SHA-256 `2F:75:DB:66:43:2E:73:86:27:39:03:7B:95:D3:1B:66:09:48:94:A1:50:50:B8:BC:C4:1F:37:9B:DA:0B:6C:A3` |
+| Secret handling | `/certs/` and `.env*` (therefore `.env.production.local`) are gitignored; no credential is committed, echoed, or logged |
+| Real-credential connection | **NOT VERIFIED** — no successful query has been performed yet |
+
+Verified at the transport level (without using the real password):
+
+- DNS resolves the host to `159.89.160.201` and a TCP connection to port 18737
+  succeeds, so the service is reachable and its IP allowlist admits this network.
+- With `ssl: { ca }` and a deliberately incorrect password the driver reaches
+  authentication: `ER_ACCESS_DENIED_ERROR (1045) Access denied for user
+  'avnadmin'@'49.205.203.188' (using password: YES)`. Reaching authentication
+  proves the TLS handshake **and** certificate verification against the Aiven
+  Project CA both succeeded — a bad CA, an untrusted chain, or a hostname
+  mismatch fails before authentication.
+- Without TLS the same attempt fails with `ER_CANNOT_RETRIEVE_RSA_KEY (45044)`:
+  the service authenticates with `caching_sha2_password`, so TLS (or an explicit
+  `allowPublicKeyRetrieval`) is mandatory. This is why `?ssl=true` cannot be
+  omitted.
+- A successful `SELECT` is still outstanding because the database password is not
+  available in this workspace. No credential was invented, guessed, substituted,
+  or copied from another environment.
+
+Diagnostic note: a failed **pool** connection is reported as the generic
+`ER_GET_CONNECTION_TIMEOUT (45028) pool timeout: failed to retrieve a connection
+from pool…`, which hides the underlying cause and looks like a network timeout.
+Use `mariadb.createConnection(...)` rather than the pool when diagnosing
+database connectivity, as was done to produce the evidence above.
+
+Steps to complete production database setup:
+
+1. Compose `DATABASE_URL` as
+   `mysql://avnadmin:<password>@nexora-mysql-shyam-1209.k.aivencloud.com:18737/defaultdb?ssl=true&connectionLimit=5&connectTimeout=8000&socketTimeout=30000`
+   and set `DATABASE_SSL_CA` to `certs/aiven-ca.pem` (PEM or base64) for local runs
+   that target the production database.
+2. Apply the schema with `npm run db:deploy`, which runs `prisma migrate deploy`
+   only. Never use `migrate dev`, `db push`, or `migrate reset` against this
+   service, so no existing object is dropped (see "Database safety"). Prisma's own
+   engine expects its TLS wording (`sslcert=<path>&sslaccept=strict`) rather than
+   the driver's `ssl=true`; both can coexist in one URL because each side ignores
+   the parameters it does not recognise.
+3. Register `DATABASE_URL` and `DATABASE_SSL_CA` for Production in the Vercel
+   project and redeploy, then run the post-deploy acceptance checks below.
+
 ## Object storage
 
 Private candidate/employee documents must never be publicly readable. Choose one driver:
