@@ -129,13 +129,45 @@ Required environment variables in the Vercel project:
 
 | Variable | Value |
 |---|---|
-| `DATABASE_URL` | `mysql://<least-privilege-user>:<password>@<managed-host>:3306/<database>` |
+| `DATABASE_URL` | `mysql://<least-privilege-user>:<password>@<managed-host>:3306/<database>?ssl=true&connectionLimit=5&connectTimeout=8000&socketTimeout=30000` — see "Managed MySQL compatibility" for why these parameters matter |
 | `SESSION_SECRET` | at least 32 random bytes |
 | `APP_URL` | the exact `https://` deployment origin (used for cookie `Secure` and CSRF origin checks) |
 | `SESSION_TTL_HOURS`, `AUTH_RATE_LIMIT_*`, `DEFAULT_CURRENCY`, `PAYROLL_WORKING_DAYS` | optional; schema defaults apply |
 | `STORAGE_DRIVER=s3` (+ `S3_*`) | required for working document upload — see below |
 | `EMAIL_DRIVER=smtp` (+ `SMTP_*`) | required for real email delivery |
 | `TRUST_PROXY` | leave unset — see "Client address and proxies" |
+
+Managed MySQL compatibility (verified against the installed driver):
+
+- The database client is `@prisma/adapter-mariadb` ^7.10.0 over `mariadb` 3.4.7,
+  not Prisma's native MySQL engine. The adapter rewrites the `mysql://` URL to
+  `mariadb://` and passes it to `mariadb.createPool()` **as a string**, so the
+  driver's own URL parser decides which parameters take effect.
+- Verified behaviour of that parser:
+  - `?ssl=true` — honoured (the driver special-cases the string `"true"` into a
+    boolean and then verifies certificates, because `rejectUnauthorized` only
+    defaults to `false` when explicitly disabled).
+  - `?connectionLimit=`, `?connectTimeout=`, `?socketTimeout=` — honoured.
+  - `?sslaccept=strict` (mysql2/Knex convention) and `?ssl-mode=REQUIRED`
+    (MySQL connector convention) — **silently ignored**. A provider-generated URL
+    that uses either spelling connects **without TLS**, so rewrite it to
+    `?ssl=true` before setting `DATABASE_URL`.
+  - `?allowPublicKeyRetrieval=true` is available for `caching_sha2_password`
+    users when connecting without TLS.
+- Authentication plugin: the user must use `caching_sha2_password` (MySQL 8
+  default, works — the project's local MySQL 8.0.45 instance uses it) or
+  `mysql_native_password`. `sha256_password` is unsupported and fails with
+  `Unknown authentication plugin 'sha256_password'`.
+- Certificate trust: `ssl=true` verifies the server certificate against the
+  public CA set, so a provider with a publicly-trusted certificate works without
+  code changes. A provider that requires its **own** CA bundle (for example a
+  default Aiven instance) needs the adapter to be constructed with
+  `{ ssl: { ca } }` in `src/lib/prisma.ts`, since a CA cannot be expressed in the
+  connection URL.
+- Network: Vercel functions have no fixed egress address, so the database must
+  accept connections from anywhere (or sit behind the provider's connection
+  pooler). Because each serverless instance opens its own pool, a pooled endpoint
+  and a modest `connectionLimit` are recommended.
 
 Verified build behaviour:
 
