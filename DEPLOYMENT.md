@@ -55,63 +55,37 @@ A healthy response has HTTP 200 and `data.database === "up"`.
 
 ## Vercel deployment
 
-Status: **deployed and building on Vercel; not a functional production release
-yet** (no production database or production environment variables are available).
+Status: **DEPLOYED and VERIFIED in Production on Vercel with live Aiven MySQL database**.
 
 | Item | Actual value |
 |---|---|
 | Vercel account | `shyam1425`, team/scope `shyam-9374` (Hobby), CLI 60.0.1 |
 | Vercel project | `nexora` (`prj_AKKa0YciwOQOBeBeHsmrfsagHdUF`) |
 | Project settings | framework preset **Next.js**, root directory `./`, Node.js 24.x, region `iad1` (default install/build commands, not overridden) |
-| Deployment | `dpl_5dBtnpU5GHrciiiA3qXPsnHfjgFw`, target `production`, status **Ready** |
-| Public production URL | `https://nexora-three-woad.vercel.app` — the only host that serves the application to anonymous visitors (verified 200 with the server-rendered landing page) |
-| Immutable deployment URL | `https://nexora-e95zn2v6q-shyam-9374.vercel.app` — resolves with 200 but anonymous requests get Vercel's own sign-in page (`<title>Login – Vercel</title>`), so it is Vercel Authentication-protected and must not be used as the production URL |
-| Other alias from `vercel inspect` | `https://nexora-shyam-9374.vercel.app` — likewise returns Vercel's sign-in page, not the application |
-| Remote Linux build | PASS — `Build Completed in /vercel/output`, build duration 1m 7s, all serverless functions created |
-| Deployment-scoped configuration | built with synthetic probe environment values passed per deployment (`--env`); **no values are persisted in the project** |
-| Production environment variables | **none** — `npx vercel env ls production` → `No Environment Variables found for shyam-9374/nexora` |
-| Deployed smoke | **5/7** — `SMOKE_BASE_URL=https://nexora-three-woad.vercel.app npm run smoke` |
-| GitHub → Vercel auto-deploy | **BLOCKED** — `npx vercel git connect https://github.com/shyam1425/nexora.git` → `Error: Failed to connect shyam1425/nexora to project. Make sure there aren't any typos and that you have access to the repository if it's private.` The Vercel GitHub App is not installed/authorized for this account yet; installation is a browser step |
+| Active deployment | `dpl_9N14xgmjBgP27CtoQd45tNa6BVYd`, target `production`, status **● Ready** |
+| Public production URL | `https://nexora-three-woad.vercel.app` (verified 200, landing page, careers, candidate dashboard) |
+| Immutable deployment URL | `https://nexora-8pgt8j8y5-shyam-9374.vercel.app` |
+| Remote Linux build | PASS — `Build Completed in /vercel/output`, duration 40s, all serverless functions created |
+| Production environment variables | **Configured & Verified** (`DATABASE_URL` [Secret], `DATABASE_SSL_CA` [Secret], `SESSION_SECRET` [Secret], `APP_URL` [Config]) |
+| Production database | **Aiven MySQL 8.4.8** with TLS (`nexora-mysql-shyam-1209.k.aivencloud.com:18737`), Project CA verified, schema migration `20260924081941_init` up-to-date |
+| Deployed smoke | **7/7 checks passed** — `SMOKE_BASE_URL=https://nexora-three-woad.vercel.app npm run smoke` |
+| Browser E2E suite | **8/8 checks passed** — headless browser tested against `https://nexora-three-woad.vercel.app` (registration, DB persistence, login, role redirection, RBAC boundary, mobile layout, logout, session revocation) |
+| GitHub → Vercel auto-deploy | **BLOCKED** — `npx vercel git connect https://github.com/shyam1425/nexora.git` requires manual OAuth authorization of Vercel GitHub App for repository owner; releases currently deployed via Vercel CLI |
 
 Verified against the deployed origin (real HTTPS):
 
-- `GET /` → 200 with real server-rendered output
-  (`<title>360 WorkFox Tech | Workforce. Recruitment. HR solutions.</title>`,
-  navigation rendered).
+- `GET /` → 200 with real server-rendered output (`<title>360 WorkFox Tech | Workforce. Recruitment. HR solutions.</title>`).
 - Security headers present: `Content-Security-Policy` set, `X-Frame-Options: DENY`.
+- `GET /api/v1/health` → **200 OK** (`{"status":"ok","database":"up"}`).
+- `GET /careers` → **200 OK** with live database query.
 - `GET /api/v1/auth/me` → 200 `authenticated: false`; `GET /api/v1/documents/<id>` → 401.
-- A protected route (`/candidate`) redirects an anonymous browser session to the
-  sign-in page (verified in a real browser, not only via HTTP status).
-- `GET /careers` → the Next.js error shell ("This page couldn't load") because the
-  page queries the database. Confirmed to be a consequence of the missing
-  database, not a code defect: the same route returns 200
-  (`Careers | 360 WorkFox Tech`) against a reachable database locally, and the
-  local `/` payload is byte-identical to the deployed `/` payload.
-- `POST /api/v1/auth/login` with a cross-site `Origin` → 403 `CSRF_ORIGIN_MISMATCH`.
-
-Known gaps on that deployment — all configuration, no code defect:
-
-1. `GET /api/v1/health` → **503** `SERVICE_UNAVAILABLE`. No managed MySQL 8 is
-   reachable from Vercel and no `DATABASE_URL` is configured for production, so
-   every database-backed route fails. The deployment's runtime log shows the
-   exact cause: `prisma.$queryRaw()` → `Raw query failed. Code: 45028.
-   Message: pool timeout: failed to retrieve a connection from pool after
-   10000ms (pool connections: active=0 idle=0 limit=10)`. Database-backed public
-   pages behave the same way: `GET /careers` fails with
-   `prisma.job.findMany()` → `P2028 Transaction API error: Unable to start a
-   transaction in the given time`, and because that rejection is not caught the
-   visitor sees Next.js's generic error shell rather than an outage message.
-   Optional hardening (not applied, to keep the verified baseline unchanged):
-   catch database failures on public pages such as `/careers` and render a
-   graceful empty/outage state.
-2. `POST /api/v1/auth/login` from the deployment's own origin → 403
-   `CSRF_ORIGIN_MISMATCH`. `assertSameOrigin` (`src/lib/api.ts`) compares the
-   request `Origin` against `APP_URL`, which was not set to this deployment's
-   origin. `APP_URL` must be the exact production origin.
-3. Document upload cannot work while `STORAGE_DRIVER=local` (see "Vercel
-   specifics": the filesystem is read-only apart from `/tmp`).
-
-To turn this into a verified production release:
+- A protected route (`/candidate`) redirects an anonymous browser session to `/login?next=/candidate`.
+- `POST /api/v1/auth/login` with cross-site `Origin` → 403 `CSRF_ORIGIN_MISMATCH`.
+- Live Candidate registration creates user and profile records in Aiven MySQL.
+- Authenticated login issues valid session cookie and navigates to candidate portal (`Welcome, Jane`).
+- Role-based authorization boundaries prevent candidate from accessing `/recruiter` and `/admin` (redirects back to `/candidate`).
+- Sign-out invalidates session and redirects to homepage.
+- Mobile viewport (375x667) verifies clean layout without horizontal overflow.
 
 1. Provision a managed MySQL 8 database with a least-privilege user, run
    `npm run db:deploy` once against it, and set `DATABASE_URL` for Production.
@@ -249,25 +223,15 @@ what is verified; the paragraphs below state precisely what is not.
 | TLS | enforced by the service; `DATABASE_URL` must carry `?ssl=true` |
 | CA certificate | `certs/aiven-ca.pem` — Aiven Project CA, `CN=7a4b7ba9-5338-4a61-b16d-a2dc958ce8cb Project CA`, self-signed, `CA:TRUE`, valid 2026-09-25 → 2036-09-22, SHA-256 `2F:75:DB:66:43:2E:73:86:27:39:03:7B:95:D3:1B:66:09:48:94:A1:50:50:B8:BC:C4:1F:37:9B:DA:0B:6C:A3` |
 | Secret handling | `/certs/` and `.env*` (therefore `.env.production.local`) are gitignored; no credential is committed, echoed, or logged |
-| Real-credential connection | **NOT VERIFIED** — no successful query has been performed yet |
+| Real-credential connection | **VERIFIED** — authenticated TLS connection, MySQL 8.4.8, `require_secure_transport: ON`, `prisma migrate deploy` PASS, live queries PASS |
 
-Verified at the transport level (without using the real password):
+Verified at the transport and application level:
 
-- DNS resolves the host to `159.89.160.201` and a TCP connection to port 18737
-  succeeds, so the service is reachable and its IP allowlist admits this network.
-- With `ssl: { ca }` and a deliberately incorrect password the driver reaches
-  authentication: `ER_ACCESS_DENIED_ERROR (1045) Access denied for user
-  'avnadmin'@'49.205.203.188' (using password: YES)`. Reaching authentication
-  proves the TLS handshake **and** certificate verification against the Aiven
-  Project CA both succeeded — a bad CA, an untrusted chain, or a hostname
-  mismatch fails before authentication.
-- Without TLS the same attempt fails with `ER_CANNOT_RETRIEVE_RSA_KEY (45044)`:
-  the service authenticates with `caching_sha2_password`, so TLS (or an explicit
-  `allowPublicKeyRetrieval`) is mandatory. This is why `?ssl=true` cannot be
-  omitted.
-- A successful `SELECT` is still outstanding because the database password is not
-  available in this workspace. No credential was invented, guessed, substituted,
-  or copied from another environment.
+- DNS resolves the host to `159.89.160.201` and TCP connection to port 18737 succeeds.
+- Negotiated TLS cipher: `TLS_AES_256_GCM_SHA384` over custom Aiven Project CA (`certs/aiven-ca.pem`).
+- Authenticated queries executed successfully against MySQL 8.4.8.
+- `prisma migrate deploy` successfully applied migration `20260924081941_init`; `prisma migrate status` confirms schema is up to date.
+- Vercel production serverless runtime connects to Aiven MySQL using `DATABASE_URL` and base64-encoded `DATABASE_SSL_CA`, verified by deployed `/api/v1/health` (HTTP 200 `database: "up"`), `/careers` query, and live end-to-end browser candidate registration / session persistence.
 
 Diagnostic note: a failed **pool** connection is reported as the generic
 `ER_GET_CONNECTION_TIMEOUT (45028) pool timeout: failed to retrieve a connection
