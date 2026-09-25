@@ -71,6 +71,7 @@ Status: **DEPLOYED and VERIFIED in Production on Vercel with live Aiven MySQL da
 | Deployed smoke | **7/7 checks passed** — `SMOKE_BASE_URL=https://nexora-three-woad.vercel.app npm run smoke` |
 | Browser E2E suite | **8/8 checks passed** — headless browser tested against `https://nexora-three-woad.vercel.app` (registration, DB persistence, login, role redirection, RBAC boundary, mobile layout, logout, session revocation) |
 | GitHub → Vercel auto-deploy | **CONNECTED** — Vercel GitHub App installed and project `nexora` linked to `shyam1425/nexora` with production branch `main` (read back from the Vercel API: `link.type=github`, `link.repo=nexora`, `link.org=shyam1425`, `link.productionBranch=main`). Pushes to `main` create production deployments automatically; the deployment carrying this commit was produced by that pipeline, with no CLI upload |
+| Commit signature requirement | **ENFORCED** — project Git setting `requireVerifiedCommits=true`. Vercel cancels deployments from commits it cannot verify (`readyState=CANCELED`, reason *"the commit signature couldn't be verified"*). Releases must therefore be pushed as signed commits: an ed25519 key is registered on GitHub as a signing key (fingerprint `SHA256:RfFFoSt0ksLn4i81szvMGHNmvr04/we1PYga/NrCwQs`) and `commit.gpgsign=true` is set in this clone |
 
 Verified against the deployed origin (real HTTPS):
 
