@@ -1,4 +1,4 @@
-# NEXROA
+# NEXORA
 
 **Workforce. Recruitment. Payroll. HR solutions.**
 
