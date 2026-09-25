@@ -82,13 +82,28 @@ Verified against the deployed origin (real HTTPS):
 - `GET /api/v1/auth/me` → 200 `authenticated: false`; `GET /api/v1/documents/<id>` → 401.
 - A protected route (`/candidate`) redirects an anonymous browser session to the
   sign-in page (verified in a real browser, not only via HTTP status).
+- `GET /careers` → the Next.js error shell ("This page couldn't load") because the
+  page queries the database. Confirmed to be a consequence of the missing
+  database, not a code defect: the same route returns 200
+  (`Careers | 360 WorkFox Tech`) against a reachable database locally, and the
+  local `/` payload is byte-identical to the deployed `/` payload.
 - `POST /api/v1/auth/login` with a cross-site `Origin` → 403 `CSRF_ORIGIN_MISMATCH`.
 
 Known gaps on that deployment — all configuration, no code defect:
 
 1. `GET /api/v1/health` → **503** `SERVICE_UNAVAILABLE`. No managed MySQL 8 is
    reachable from Vercel and no `DATABASE_URL` is configured for production, so
-   every database-backed route fails.
+   every database-backed route fails. The deployment's runtime log shows the
+   exact cause: `prisma.$queryRaw()` → `Raw query failed. Code: 45028.
+   Message: pool timeout: failed to retrieve a connection from pool after
+   10000ms (pool connections: active=0 idle=0 limit=10)`. Database-backed public
+   pages behave the same way: `GET /careers` fails with
+   `prisma.job.findMany()` → `P2028 Transaction API error: Unable to start a
+   transaction in the given time`, and because that rejection is not caught the
+   visitor sees Next.js's generic error shell rather than an outage message.
+   Optional hardening (not applied, to keep the verified baseline unchanged):
+   catch database failures on public pages such as `/careers` and render a
+   graceful empty/outage state.
 2. `POST /api/v1/auth/login` from the deployment's own origin → 403
    `CSRF_ORIGIN_MISMATCH`. `assertSameOrigin` (`src/lib/api.ts`) compares the
    request `Origin` against `APP_URL`, which was not set to this deployment's
