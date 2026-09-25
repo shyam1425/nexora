@@ -55,19 +55,60 @@ A healthy response has HTTP 200 and `data.database === "up"`.
 
 ## Vercel deployment
 
-Status: **not deployed yet**. The repository is committed locally, but a Vercel
-release is blocked on two external items:
+Status: **deployed and building on Vercel; not a functional production release
+yet** (no production database or production environment variables are available).
 
-1. Vercel account access — `npx vercel whoami` reports `Logged out`; run
-   `npx vercel login` (browser flow) once.
-2. A MySQL 8 instance the deployment can reach. Serverless functions cannot
-   reach `127.0.0.1`, so the local development instance on port 3307 is not
-   usable; a managed MySQL is required for a functional deployment.
+| Item | Actual value |
+|---|---|
+| Vercel account | `shyam1425`, team/scope `shyam-9374` (Hobby), CLI 60.0.1 |
+| Vercel project | `nexora` (`prj_AKKa0YciwOQOBeBeHsmrfsagHdUF`) |
+| Project settings | framework preset **Next.js**, root directory `./`, Node.js 24.x, region `iad1` (default install/build commands, not overridden) |
+| Deployment | `dpl_5dBtnpU5GHrciiiA3qXPsnHfjgFw`, target `production`, status **Ready** |
+| Public production URL | `https://nexora-three-woad.vercel.app` — the only host that serves the application to anonymous visitors (verified 200 with the server-rendered landing page) |
+| Immutable deployment URL | `https://nexora-e95zn2v6q-shyam-9374.vercel.app` — resolves with 200 but anonymous requests get Vercel's own sign-in page (`<title>Login – Vercel</title>`), so it is Vercel Authentication-protected and must not be used as the production URL |
+| Other alias from `vercel inspect` | `https://nexora-shyam-9374.vercel.app` — likewise returns Vercel's sign-in page, not the application |
+| Remote Linux build | PASS — `Build Completed in /vercel/output`, build duration 1m 7s, all serverless functions created |
+| Deployment-scoped configuration | built with synthetic probe environment values passed per deployment (`--env`); **no values are persisted in the project** |
+| Production environment variables | **none** — `npx vercel env ls production` → `No Environment Variables found for shyam-9374/nexora` |
+| Deployed smoke | **5/7** — `SMOKE_BASE_URL=https://nexora-three-woad.vercel.app npm run smoke` |
+| GitHub → Vercel auto-deploy | **BLOCKED** — `npx vercel git connect https://github.com/shyam1425/nexora.git` → `Error: Failed to connect shyam1425/nexora to project. Make sure there aren't any typos and that you have access to the repository if it's private.` The Vercel GitHub App is not installed/authorized for this account yet; installation is a browser step |
 
-Import the GitHub repository (framework preset **Next.js**, root directory
-`./`, default install/build commands — do not override them) so that every push
-to `main` produces a deployment. CLI alternative: `npx vercel link` followed by
-`npx vercel --prod`.
+Verified against the deployed origin (real HTTPS):
+
+- `GET /` → 200 with real server-rendered output
+  (`<title>360 WorkFox Tech | Workforce. Recruitment. HR solutions.</title>`,
+  navigation rendered).
+- Security headers present: `Content-Security-Policy` set, `X-Frame-Options: DENY`.
+- `GET /api/v1/auth/me` → 200 `authenticated: false`; `GET /api/v1/documents/<id>` → 401.
+- A protected route (`/candidate`) redirects an anonymous browser session to the
+  sign-in page (verified in a real browser, not only via HTTP status).
+- `POST /api/v1/auth/login` with a cross-site `Origin` → 403 `CSRF_ORIGIN_MISMATCH`.
+
+Known gaps on that deployment — all configuration, no code defect:
+
+1. `GET /api/v1/health` → **503** `SERVICE_UNAVAILABLE`. No managed MySQL 8 is
+   reachable from Vercel and no `DATABASE_URL` is configured for production, so
+   every database-backed route fails.
+2. `POST /api/v1/auth/login` from the deployment's own origin → 403
+   `CSRF_ORIGIN_MISMATCH`. `assertSameOrigin` (`src/lib/api.ts`) compares the
+   request `Origin` against `APP_URL`, which was not set to this deployment's
+   origin. `APP_URL` must be the exact production origin.
+3. Document upload cannot work while `STORAGE_DRIVER=local` (see "Vercel
+   specifics": the filesystem is read-only apart from `/tmp`).
+
+To turn this into a verified production release:
+
+1. Provision a managed MySQL 8 database with a least-privilege user, run
+   `npm run db:deploy` once against it, and set `DATABASE_URL` for Production.
+2. Set `SESSION_SECRET` (≥ 32 random bytes) and `APP_URL` (exact production
+   origin) for Production, then run `npx vercel --prod`. Keep `TRUST_PROXY`
+   unset — Vercel terminates TLS at its edge but does not append a validated
+   client-address hop; see "Client address and proxies".
+3. Install/authorize the Vercel GitHub App for `shyam1425/nexora` and connect
+   the project (`npx vercel git connect`, or Project → Settings → Git) so pushes
+   to `main` deploy automatically.
+4. Re-run the post-deploy acceptance checklist below, including
+   `SMOKE_BASE_URL=https://<domain> npm run smoke` (expect 7/7).
 
 Required environment variables in the Vercel project:
 
@@ -129,9 +170,10 @@ Local build path (`vercel deploy --temporary`) and local installs:
   environment. Remove that user-level entry or scope it to the tool that needs
   it; it has no effect on Vercel's remote builders.
 
-A first genuine production deployment therefore still requires the account login
-and the production environment variables listed above; `vercel deploy
---temporary` is only a local pipeline probe.
+The remote Linux builder is therefore verified working (see the deployment
+record above). A **functional** production release still requires the production
+environment variables listed below; `vercel deploy --temporary` remains only a
+local pipeline probe.
 
 ## Object storage
 
