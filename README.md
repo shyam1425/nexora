@@ -1,8 +1,8 @@
-# 360 WorkFox Tech
+# NEXROA
 
 **Workforce. Recruitment. Payroll. HR solutions.**
 
-360 WorkFox Tech is a connected workforce platform for clients, recruiters, candidates, employees, and administrators. The current Production MVP focuses on the real recruitment path:
+NEXORA is a connected workforce platform for clients, recruiters, candidates, employees, and administrators. The current Production MVP focuses on the real recruitment path:
 
 ```text
 client requirement → job → candidate application → recruiter screening
