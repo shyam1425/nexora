@@ -58,7 +58,7 @@
 | End-to-end browser acceptance | PASS — 8/8 checks automated with headless browser against `https://nexora-three-woad.vercel.app`: anonymous redirect, candidate registration, DB persistence in Aiven MySQL, active login, role dashboard, RBAC boundary enforcement, mobile responsiveness (375x667), and logout session revocation |
 | Deployed smoke (Vercel) | PASS — 7/7: `SMOKE_BASE_URL=https://nexora-three-woad.vercel.app npm run smoke` passes homepage, security headers, anonymous identity, health (200), anonymous denial, login validation, and cross-site rejection |
 | Vercel production environment variables | CONFIGURED — `DATABASE_URL` (Secret), `DATABASE_SSL_CA` (Secret), `SESSION_SECRET` (Secret), `APP_URL` (Config) registered for Production environment |
-| GitHub → Vercel continuous deployment | BLOCKED — `npx vercel git connect https://github.com/shyam1425/nexora.git` → `Error: Failed to connect shyam1425/nexora to project. Make sure there aren't any typos and that you have access to the repository if it's private.` The Vercel GitHub App is not installed for the account, so pushes to `main` do not deploy automatically yet. Verified empirically: after pushing `9d76f34`, `npx vercel ls` still lists exactly one deployment (`dpl_5dBtnpU5GHrciiiA3qXPsnHfjgFw`) |
+| GitHub → Vercel continuous deployment | CONNECTED — Vercel GitHub App installed for `shyam1425`; project `nexora` linked to repository `shyam1425/nexora` with production branch `main` (`link.type=github`, `link.repo=nexora`, `link.org=shyam1425`, `link.productionBranch=main`, read back from the Vercel API after authorization). Pushes to `main` produce production deployments automatically, aliased to `https://nexora-three-woad.vercel.app`; the deployment carrying this commit is the first one produced by the GitHub integration, with no `vercel --prod` upload |
 
 ## In progress / incomplete
 
@@ -70,13 +70,11 @@
 ## Blocked / external configuration
 
 - GitHub: the account named in the deployment brief, `shyam1425i`, does not exist (GitHub API 404 for the user and for the repository). The repository is therefore published on the authenticated account as `https://github.com/shyam1425/nexora` (public, operator-confirmed), with `main` tracking `origin/main`.
-- Vercel GitHub integration: `npx vercel git connect https://github.com/shyam1425/nexora.git` fails with `Error: Failed to connect shyam1425/nexora to project. Make sure there aren't any typos and that you have access to the repository if it's private.` Installing and authorizing the Vercel GitHub App for `shyam1425/nexora` is a browser step for the repository owner; until it is done, pushes to `main` do not trigger deployments and every release has to be uploaded with the CLI.
 - Production custom domain, SMTP credentials, and private object-storage credentials are not configured in this workspace.
 - Payroll processing, tax automation, biometric attendance, WhatsApp/SMS, AI matching, and billing are intentionally post-MVP or pending explicit scope approval.
 
 ## Next highest-priority tasks
 
-1. Install and authorize the Vercel GitHub App for `shyam1425/nexora` and connect the project (`npx vercel git connect`) so pushes to `main` deploy automatically.
-2. Configure `STORAGE_DRIVER=s3` (uploads, since Vercel's filesystem is read-only apart from `/tmp`) and `EMAIL_DRIVER=smtp` (email) on the deployed environment, then verify document upload/download authorization and real email delivery.
+1. Configure `STORAGE_DRIVER=s3` (uploads, since Vercel's filesystem is read-only apart from `/tmp`) and `EMAIL_DRIVER=smtp` (email) on the deployed environment, then verify document upload/download authorization and real email delivery.
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md), [API.md](./API.md), [SECURITY.md](./SECURITY.md), and [DEPLOYMENT.md](./DEPLOYMENT.md) for the current implementation contract.

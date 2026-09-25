@@ -70,7 +70,7 @@ Status: **DEPLOYED and VERIFIED in Production on Vercel with live Aiven MySQL da
 | Production database | **Aiven MySQL 8.4.8** with TLS (`nexora-mysql-shyam-1209.k.aivencloud.com:18737`), Project CA verified, schema migration `20260924081941_init` up-to-date |
 | Deployed smoke | **7/7 checks passed** — `SMOKE_BASE_URL=https://nexora-three-woad.vercel.app npm run smoke` |
 | Browser E2E suite | **8/8 checks passed** — headless browser tested against `https://nexora-three-woad.vercel.app` (registration, DB persistence, login, role redirection, RBAC boundary, mobile layout, logout, session revocation) |
-| GitHub → Vercel auto-deploy | **BLOCKED** — `npx vercel git connect https://github.com/shyam1425/nexora.git` requires manual OAuth authorization of Vercel GitHub App for repository owner; releases currently deployed via Vercel CLI |
+| GitHub → Vercel auto-deploy | **CONNECTED** — Vercel GitHub App installed and project `nexora` linked to `shyam1425/nexora` with production branch `main` (read back from the Vercel API: `link.type=github`, `link.repo=nexora`, `link.org=shyam1425`, `link.productionBranch=main`). Pushes to `main` create production deployments automatically; the deployment carrying this commit was produced by that pipeline, with no CLI upload |
 
 Verified against the deployed origin (real HTTPS):
 
@@ -93,9 +93,10 @@ Verified against the deployed origin (real HTTPS):
    origin) for Production, then run `npx vercel --prod`. Keep `TRUST_PROXY`
    unset — Vercel terminates TLS at its edge but does not append a validated
    client-address hop; see "Client address and proxies".
-3. Install/authorize the Vercel GitHub App for `shyam1425/nexora` and connect
-   the project (`npx vercel git connect`, or Project → Settings → Git) so pushes
-   to `main` deploy automatically.
+3. Push to `main` to release: the connected GitHub integration builds the commit
+   and promotes it to production automatically (Vercel GitHub App installed,
+   project linked to `shyam1425/nexora`, production branch `main`). Reserve
+   `npx vercel --prod` for an out-of-band release when no commit is available.
 4. Re-run the post-deploy acceptance checklist below, including
    `SMOKE_BASE_URL=https://<domain> npm run smoke` (expect 7/7).
 
