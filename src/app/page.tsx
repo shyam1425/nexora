@@ -43,9 +43,9 @@ export default function Home() {
     <div className="min-h-screen overflow-hidden bg-background text-foreground">
       <header className="sticky top-0 z-50 border-b border-border/80 bg-background/90 backdrop-blur-xl">
         <div className="container-page flex h-18 items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-3 font-semibold tracking-tight" aria-label="360 WorkFox Tech home">
-            <span className="grid size-10 place-items-center rounded-xl bg-primary text-sm font-black text-primary-foreground shadow-lg shadow-primary/20">360</span>
-            <span>WorkFox Tech</span>
+          <Link href="/" className="flex items-center gap-3 font-semibold tracking-tight" aria-label="NEXORA home">
+            <span className="grid size-10 place-items-center rounded-xl bg-primary text-sm font-black text-primary-foreground shadow-lg shadow-primary/20">N</span>
+            <span>NEXORA</span>
           </Link>
           <nav className="hidden items-center gap-7 text-sm font-medium text-muted-foreground md:flex" aria-label="Primary navigation">
             <Link href="#solutions" className="transition hover:text-foreground">Solutions</Link>
@@ -143,7 +143,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-border bg-card"><div className="container-page flex flex-col gap-5 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3 font-semibold text-foreground"><span className="grid size-9 place-items-center rounded-lg bg-primary text-xs font-black text-primary-foreground">360</span>WorkFox Tech</div><p>Workforce. Recruitment. HR solutions.</p><div className="flex gap-5"><Link href="/careers" className="hover:text-foreground">Careers</Link><Link href="/login" className="hover:text-foreground">Sign in</Link></div></div></footer>
+      <footer className="border-t border-border bg-card"><div className="container-page flex flex-col gap-5 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3 font-semibold text-foreground"><span className="grid size-9 place-items-center rounded-lg bg-primary text-xs font-black text-primary-foreground">N</span>NEXORA</div><p>Workforce. Recruitment. HR solutions.</p><div className="flex gap-5"><Link href="/careers" className="hover:text-foreground">Careers</Link><Link href="/login" className="hover:text-foreground">Sign in</Link></div></div></footer>
     </div>
   );
 }

@@ -9,9 +9,9 @@ export default function LoginPage() {
   return (
     <AuthShell
       eyebrow="Welcome back"
-      title="Sign in to WorkFox"
+      title="Sign in to NEXORA"
       description="Access your recruiting, client, or employee workspace with your secure account."
-      footer={<>New to 360 WorkFox Tech? <Link href="/register/candidate" className="font-medium text-primary hover:underline">Create a candidate account</Link></>}
+      footer={<>New to NEXORA? <Link href="/register/candidate" className="font-medium text-primary hover:underline">Create a candidate account</Link></>}
     >
       <Suspense><LoginForm /></Suspense>
     </AuthShell>

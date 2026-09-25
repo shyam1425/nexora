@@ -14,12 +14,12 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "360 WorkFox Tech | Workforce. Recruitment. HR solutions.",
-    template: "%s | 360 WorkFox Tech",
+    default: "NEXORA | Workforce. Recruitment. HR solutions.",
+    template: "%s | NEXORA",
   },
   description:
     "Connected workforce, recruitment, client collaboration, and employee operations for growing organizations.",
-  applicationName: "360 WorkFox Tech",
+  applicationName: "NEXORA",
   keywords: [
     "workforce management",
     "recruitment",
@@ -30,8 +30,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
   openGraph: {
     type: "website",
-    siteName: "360 WorkFox Tech",
-    title: "360 WorkFox Tech | Workforce. Recruitment. HR solutions.",
+    siteName: "NEXORA",
+    title: "NEXORA | Workforce. Recruitment. HR solutions.",
     description:
       "Move from manpower requirement to a confident hire with one connected platform.",
   },

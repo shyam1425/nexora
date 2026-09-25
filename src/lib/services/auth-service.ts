@@ -55,10 +55,10 @@ async function sendVerificationEmail(user: User, firstName: string): Promise<voi
 
   await sendTransactionalEmail({
     to: user.email,
-    subject: 'Verify your 360 WorkFox Tech account',
+    subject: 'Verify your NEXORA account',
     text:
       `Hi ${firstName},\n\n` +
-      'Welcome to 360 WorkFox Tech. Confirm your email address to activate your account:\n' +
+      'Welcome to NEXORA. Confirm your email address to activate your account:\n' +
       `${link}\n\n` +
       'This link expires in 24 hours. If you did not create this account you can ignore this email.',
   });
@@ -197,7 +197,7 @@ export async function registerClientAccount(
       {
         userId: created.id,
         type: NOTIFICATION_TYPES.WELCOME,
-        title: 'Welcome to 360 WorkFox Tech',
+        title: 'Welcome to NEXORA',
         body: 'Your company account is ready. Raise your first manpower requirement to start hiring.',
         link: '/client/requirements/new',
       },
@@ -445,7 +445,7 @@ export async function requestPasswordReset(
 
   await sendTransactionalEmail({
     to: user.email,
-    subject: 'Reset your 360 WorkFox Tech password',
+    subject: 'Reset your NEXORA password',
     text:
       `Hi ${user.name ?? 'there'},\n\n` +
       `Use the link below to choose a new password. It expires in ${RESET_TTL_MINUTES} minutes:\n${link}\n\n` +

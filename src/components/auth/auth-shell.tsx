@@ -22,9 +22,9 @@ export function AuthShell({
         <div className="absolute -bottom-48 -left-24 size-[30rem] rounded-full border border-white/10" />
         <Link href="/" className="relative flex items-center gap-3 text-lg font-semibold tracking-tight">
           <span className="grid size-10 place-items-center rounded-xl bg-accent text-accent-foreground shadow-lg shadow-black/20">
-            360
+            N
           </span>
-          <span>WorkFox Tech</span>
+          <span>NEXORA</span>
         </Link>
 
         <div className="relative max-w-xl space-y-8">
@@ -54,14 +54,14 @@ export function AuthShell({
           </div>
         </div>
 
-        <p className="relative text-xs text-primary-foreground/55">© 2026 360 WorkFox Tech. Built for real teams.</p>
+        <p className="relative text-xs text-primary-foreground/55">© 2026 NEXORA. Built for real teams.</p>
       </section>
 
       <section className="flex min-h-screen flex-col px-5 py-6 sm:px-10 lg:px-16 lg:py-10">
         <div className="flex items-center justify-between lg:justify-end">
           <Link href="/" className="flex items-center gap-2 font-semibold text-primary lg:hidden">
-            <span className="grid size-8 place-items-center rounded-lg bg-accent text-xs text-accent-foreground">360</span>
-            WorkFox Tech
+            <span className="grid size-8 place-items-center rounded-lg bg-accent text-xs text-accent-foreground">N</span>
+            NEXORA
           </Link>
           <Link href="/" className="text-sm text-muted-foreground hover:text-primary">Back to website</Link>
         </div>
