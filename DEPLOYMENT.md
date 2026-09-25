@@ -130,6 +130,7 @@ Required environment variables in the Vercel project:
 | Variable | Value |
 |---|---|
 | `DATABASE_URL` | `mysql://<least-privilege-user>:<password>@<managed-host>:3306/<database>?ssl=true&connectionLimit=5&connectTimeout=8000&socketTimeout=30000` — see "Managed MySQL compatibility" for why these parameters matter |
+| `DATABASE_SSL_CA` | optional — CA certificate (PEM, PEM with escaped `\n`, or base64) for a provider that signs with its own certificate authority; leave unset when the connection URL already uses `?ssl=true` |
 | `SESSION_SECRET` | at least 32 random bytes |
 | `APP_URL` | the exact `https://` deployment origin (used for cookie `Secure` and CSRF origin checks) |
 | `SESSION_TTL_HOURS`, `AUTH_RATE_LIMIT_*`, `DEFAULT_CURRENCY`, `PAYROLL_WORKING_DAYS` | optional; schema defaults apply |
@@ -159,11 +160,25 @@ Managed MySQL compatibility (verified against the installed driver):
   `mysql_native_password`. `sha256_password` is unsupported and fails with
   `Unknown authentication plugin 'sha256_password'`.
 - Certificate trust: `ssl=true` verifies the server certificate against the
-  public CA set, so a provider with a publicly-trusted certificate works without
-  code changes. A provider that requires its **own** CA bundle (for example a
-  default Aiven instance) needs the adapter to be constructed with
-  `{ ssl: { ca } }` in `src/lib/prisma.ts`, since a CA cannot be expressed in the
-  connection URL.
+  public CA set, so a provider with a publicly-trusted certificate needs no
+  further configuration.
+- A provider that signs with its **own** certificate authority cannot be trusted
+  through the URL, because the driver only accepts a CA bundle as part of an
+  options object. This case is supported: set `DATABASE_SSL_CA` (PEM, PEM with
+  escaped `\n`, or the base64 encoding of either) and the adapter is constructed
+  from unpacked URL options plus `ssl: { ca }`, with certificate verification
+  still enabled. Verified end to end against the local MySQL: with the CA
+  configured the pool fails (TLS is requested and the non-TLS server cannot
+  complete the handshake), without it the same configuration connects and
+  answers `SELECT 1`.
+- Migrations use a different TLS vocabulary from the runtime driver. Prisma's
+  own engine (used by `prisma migrate deploy`) documents the MySQL arguments
+  `sslcert` (path to the server certificate) and `sslaccept` (certificate
+  validation mode), while the `mariadb` driver ignores both. The two sets can
+  coexist in one URL, because each side ignores the parameters it does not know:
+  `mysql://user:pass@host:3306/db?ssl=true&sslcert=./certs/provider-ca.pem&sslaccept=strict&connectionLimit=5`.
+  The `sslcert` path is only needed for the release job that runs migrations from
+  a machine with the file on disk; Vercel never runs migrations at build time.
 - Network: Vercel functions have no fixed egress address, so the database must
   accept connections from anywhere (or sit behind the provider's connection
   pooler). Because each serverless instance opens its own pool, a pooled endpoint

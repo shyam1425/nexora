@@ -1,5 +1,6 @@
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import { PrismaClient } from '@/generated/prisma/client';
+import { databaseAdapterConfig, normalizeCertificateAuthority } from './database-config';
 import { env } from './env';
 
 /**
@@ -12,7 +13,12 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-const adapter = new PrismaMariaDb(env.DATABASE_URL);
+const adapter = new PrismaMariaDb(
+  databaseAdapterConfig(
+    env.DATABASE_URL,
+    env.DATABASE_SSL_CA ? normalizeCertificateAuthority(env.DATABASE_SSL_CA) : undefined,
+  ),
+);
 
 export const prisma =
   globalForPrisma.prisma ??

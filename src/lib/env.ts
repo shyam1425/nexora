@@ -11,6 +11,11 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  // Optional CA certificate (PEM text or its base64 encoding) for managed MySQL
+  // providers that sign with their own certificate authority, such as a default
+  // Aiven service. Providers with a publicly-trusted certificate use `?ssl=true`
+  // in DATABASE_URL and leave this unset.
+  DATABASE_SSL_CA: z.string().optional(),
 
   SESSION_SECRET: z
     .string()
