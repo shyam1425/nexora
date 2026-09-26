@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ZodError, type ZodType } from 'zod';
 import { resolveClientIp } from './client-ip';
+import { isDatabaseUnavailable } from './database-errors';
 import { env } from './env';
 import { AppError, ValidationError } from './errors';
 import { logger } from './logger';
@@ -53,6 +54,18 @@ export function routeHandler<Ctx>(
       if (error instanceof ZodError) {
         logRequest(request, 422, started, 'VALIDATION_ERROR');
         return fail('VALIDATION_ERROR', 'The submitted data is invalid', 422, zodDetails(error));
+      }
+
+      // A dependency that cannot be reached is a retryable condition, not an
+      // internal fault: answer 503 so clients and monitoring see the real cause.
+      if (isDatabaseUnavailable(error)) {
+        logger.error('api_database_unavailable', {
+          path: request.nextUrl.pathname,
+          method: request.method,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        logRequest(request, 503, started, 'SERVICE_UNAVAILABLE');
+        return fail('SERVICE_UNAVAILABLE', 'Service dependencies are unavailable', 503);
       }
 
       logger.error('Unhandled API error', {
