@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, BriefcaseBusiness, MapPin } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
+import { queryOrUnavailable } from '@/lib/query-fallback';
+import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +12,15 @@ export const metadata = { title: 'Role details' };
 
 export default async function JobDetailsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const job = await prisma.job.findFirst({ where: { slug, status: 'PUBLISHED', visibility: 'PUBLIC', deletedAt: null }, include: { client: { select: { name: true, industry: true, city: true } } } });
+  const result = await queryOrUnavailable('job_detail', () =>
+    prisma.job.findFirst({ where: { slug, status: 'PUBLISHED', visibility: 'PUBLIC', deletedAt: null }, include: { client: { select: { name: true, industry: true, city: true } } } }),
+  );
+  if (!result.ok) {
+    return (
+      <div className="min-h-screen bg-background"><header className="border-b border-border bg-card"><div className="container-page flex min-h-18 items-center justify-between"><Link href="/careers" className="inline-flex items-center gap-2 text-sm font-medium text-primary"><ArrowLeft className="size-4" />Back to careers</Link><Button asChild size="sm"><Link href="/register/candidate">Create candidate profile</Link></Button></div></header><main id="main-content" className="container-page py-10"><Alert variant="warning" title="This role is temporarily unavailable">We could not load the role details just now. Please refresh the page in a moment.</Alert></main></div>
+    );
+  }
+  const job = result.value;
   if (!job) notFound();
 
   return (
