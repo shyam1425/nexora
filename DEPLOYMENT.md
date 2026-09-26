@@ -119,6 +119,17 @@ Recovery steps (operator):
    re-run `SMOKE_BASE_URL=https://nexora-three-woad.vercel.app npm run smoke`
    (expect 7/7) and the browser acceptance checks.
 
+Verified deployed behaviour (2026-09-26, deployment
+`dpl_BMcFRoo2MPJBD3yNBf8a97Ktvv57`, commit `f90209f`, `source=git`, alias
+`nexora-three-woad.vercel.app`): `/careers`, `/careers?q=engineer` and
+`/careers/does-not-exist` answer **200 with the unavailable alert** (all three
+returned 500 before this change), `/api/v1/health` returns 503, `/`, `/login` and
+`/register/candidate` return 200, `/candidate` returns 307, and a headless
+browser pass succeeded on all four public routes with NEXORA branding, no legacy
+branding, and no console or network errors. `npm run smoke` reports **6/7** — the
+single failure is the `health endpoint` check (HTTP 503), which is the correct
+signal while the database service is gone; the other six checks pass.
+
 1. Provision a managed MySQL 8 database with a least-privilege user, run
    `npm run db:deploy` once against it, and set `DATABASE_URL` for Production.
 2. Set `SESSION_SECRET` (≥ 32 random bytes) and `APP_URL` (exact production
