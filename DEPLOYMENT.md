@@ -130,6 +130,19 @@ branding, and no console or network errors. `npm run smoke` reports **6/7** — 
 single failure is the `health endpoint` check (HTTP 503), which is the correct
 signal while the database service is gone; the other six checks pass.
 
+Follow-up hardening verified in production (2026-09-26, deployment
+`dpl_zu2Qj1ZwgxQmxup7s31Sio8T9dFS`, commit `30b2d0c`, `source=git`): a database
+that cannot be reached is now reported as **503 `SERVICE_UNAVAILABLE`** rather
+than 500 `INTERNAL_ERROR` — `POST /api/v1/auth/login` with a non-existent account
+returns the same sanitized envelope as the health endpoint, so clients and
+monitoring see a retryable dependency failure instead of an internal fault.
+Locally, the intermittent "pool timeout" integration failures were traced to the
+dev user's `caching_sha2_password` handshake (the driver's real error is
+`RSA public key is not available client side`, masked by Prisma as pool timeout);
+the local `DATABASE_URL` now carries `?allowPublicKeyRetrieval=true` and
+`tests/setup.ts` prints that cause directly. A cold server now runs the whole
+suite green: 20 files / 90 tests.
+
 1. Provision a managed MySQL 8 database with a least-privilege user, run
    `npm run db:deploy` once against it, and set `DATABASE_URL` for Production.
 2. Set `SESSION_SECRET` (≥ 32 random bytes) and `APP_URL` (exact production
