@@ -35,6 +35,34 @@ function isReachable(target: { host: string; port: number }): Promise<boolean> {
   });
 }
 
+/**
+ * Mirrors the application's plain, untrusted-TLS local connection so a
+ * credential-exchange problem is reported before the suites run. Returns the
+ * driver's message on failure, or null when authentication succeeds.
+ */
+async function probeAuthentication(raw: string): Promise<string | null> {
+  const { createConnection } = await import('mariadb');
+  const url = new URL(raw);
+  let connection: Awaited<ReturnType<typeof createConnection>> | undefined;
+  try {
+    connection = await createConnection({
+      host: url.hostname,
+      port: Number(url.port || 3306),
+      user: decodeURIComponent(url.username),
+      password: decodeURIComponent(url.password),
+      database: decodeURIComponent(url.pathname.replace(/^\//, '')),
+      allowPublicKeyRetrieval: url.searchParams.get('allowPublicKeyRetrieval') === 'true',
+      connectTimeout: 4000,
+    });
+    await connection.query('SELECT 1');
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  } finally {
+    if (connection) await connection.end().catch(() => undefined);
+  }
+}
+
 const target = databaseTarget();
 if (target && !(await isReachable(target))) {
   // Deliberately a warning rather than a hard failure: the unit suites do not
@@ -44,5 +72,25 @@ if (target && !(await isReachable(target))) {
       '[tests] Integration suites will fail until it is running. Start it with:\n' +
       '[tests]   powershell -ExecutionPolicy Bypass -File scripts/dev-db.ps1 -Action start\n',
   );
+} else if (target && process.env.DATABASE_URL) {
+  const url = process.env.DATABASE_URL;
+  // A provider reached over TLS negotiates the credential exchange for us; only
+  // a plain local connection needs the extra parameter.
+  const usesTls = /[?&]ssl=true/.test(url);
+  if (!usesTls) {
+    const failure = await probeAuthentication(url);
+    if (failure) {
+      console.warn(
+        `\n[tests] The test database at ${target.host}:${target.port} refused a plain connection:\n` +
+          `[tests]   ${failure}\n` +
+          '[tests] A local MySQL 8 app user authenticates with caching_sha2_password, which cannot\n' +
+          '[tests] complete without TLS or an RSA key exchange — Prisma reports this as an opaque\n' +
+          '[tests] "pool timeout". Append the parameter to DATABASE_URL in .env:\n' +
+          '[tests]   ?allowPublicKeyRetrieval=true\n' +
+          '[tests] (managed providers reached with ?ssl=true do not need it)\n',
+      );
+    }
+  }
 }
+
 
