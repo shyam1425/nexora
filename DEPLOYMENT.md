@@ -55,7 +55,7 @@ A healthy response has HTTP 200 and `data.database === "up"`.
 
 ## Vercel deployment
 
-Status: **DEPLOYED and VERIFIED in Production on Vercel with live Aiven MySQL database**.
+Status: **DEPLOYED and VERIFIED in Production on Vercel**. Automatic GitHub → Vercel deployment from `main` is working. **Known production issue (2026-09-26):** the Aiven MySQL service backing the deployment no longer exists in DNS, so `/api/v1/health` currently returns 503 and database-backed pages render an explicit "temporarily unavailable" state — see "Known production issue: database service unavailable".
 
 | Item | Actual value |
 |---|---|
@@ -67,13 +67,13 @@ Status: **DEPLOYED and VERIFIED in Production on Vercel with live Aiven MySQL da
 | Automatic deployment evidence | `dpl_EtSkwDYUJPhH36brPNLUeoRcRwkv` — commit `2b1ee83`, `target=production`, `source=git`, **● Ready** in 42.6s, aliased to the production URL; produced by `git push origin main` with no `vercel --prod` |
 | Remote Linux build | PASS — `Build Completed in /vercel/output`, all serverless functions created |
 | Production environment variables | **Configured & Verified** (`DATABASE_URL` [Secret], `DATABASE_SSL_CA` [Secret], `SESSION_SECRET` [Secret], `APP_URL` [Config]) |
-| Production database | **Aiven MySQL 8.4.8** with TLS (`nexora-mysql-shyam-1209.k.aivencloud.com:18737`), Project CA verified, schema migration `20260924081941_init` up-to-date |
+| Production database | **UNAVAILABLE since 2026-09-26** — was Aiven MySQL 8.4.8 over TLS (`nexora-mysql-shyam-1209.k.aivencloud.com:18737`) with the Project CA verified and migration `20260924081941_init` up-to-date as of 2026-09-25. The service hostname now returns NXDOMAIN on the Windows resolver, Google DNS (`dns.google` status 3) and Cloudflare (`one.one.one.one`), while the `aivencloud.com` apex resolves, so the database is gone rather than misconfigured locally. Recreate it in Aiven and update `DATABASE_URL`/`DATABASE_SSL_CA` to restore |
 | Deployed smoke | **7/7 checks passed** — `SMOKE_BASE_URL=https://nexora-three-woad.vercel.app npm run smoke` |
 | Browser E2E suite | **8/8 checks passed** — headless browser tested against `https://nexora-three-woad.vercel.app` (registration, DB persistence, login, role redirection, RBAC boundary, mobile layout, logout, session revocation) |
 | GitHub → Vercel auto-deploy | **CONNECTED** — Vercel GitHub App installed and project `nexora` linked to `shyam1425/nexora` with production branch `main` (read back from the Vercel API: `link.type=github`, `link.repo=nexora`, `link.org=shyam1425`, `link.productionBranch=main`). Pushes to `main` create production deployments automatically; the deployment carrying this commit was produced by that pipeline, with no CLI upload |
 | Commit signature requirement | **ENFORCED** — project Git setting `requireVerifiedCommits=true`. Vercel cancels deployments from commits it cannot verify (`readyState=CANCELED`, reason *"the commit signature couldn't be verified"*). Releases must therefore be pushed as signed commits: an ed25519 key is registered on GitHub as a signing key (fingerprint `SHA256:RfFFoSt0ksLn4i81szvMGHNmvr04/we1PYga/NrCwQs`) and `commit.gpgsign=true` is set in this clone |
 
-Verified against the deployed origin (real HTTPS):
+Verified against the deployed origin over real HTTPS on 2026-09-25, before the database service disappeared from DNS (health and careers results below reflect that healthy state; see "Known production issue: database service unavailable" for the current status):
 
 - `GET /` → 200 with real server-rendered output (`<title>NEXORA | Workforce. Recruitment. HR solutions.</title>`).
 - Security headers present: `Content-Security-Policy` set, `X-Frame-Options: DENY`.
@@ -87,6 +87,37 @@ Verified against the deployed origin (real HTTPS):
 - Role-based authorization boundaries prevent candidate from accessing `/recruiter` and `/admin` (redirects back to `/candidate`).
 - Sign-out invalidates session and redirects to homepage.
 - Mobile viewport (375x667) verifies clean layout without horizontal overflow.
+
+### Known production issue: database service unavailable
+
+Detected 2026-09-26. The Aiven MySQL service behind the production deployment
+(`nexora-mysql-shyam-1209.k.aivencloud.com`) no longer resolves: `NXDOMAIN` from
+the Windows resolver, from Google DNS (`dns.google` → status 3) and from
+Cloudflare (`one.one.one.one`), while the `aivencloud.com` apex resolves
+normally and `api.aiven.io` answers. The Aiven status page reported *"minor —
+Partial System Degradation"* at detection time. A local `SELECT 1` against the
+development database still succeeds, so the failure is specific to that service.
+
+Impact and behaviour:
+
+| Surface | Before hardening | Now |
+|---|---|---|
+| `GET /api/v1/health` | 503 `SERVICE_UNAVAILABLE` | 503 (intended monitoring signal, unchanged) |
+| `GET /careers`, `/careers/*` | 500 with Next.js's default error screen | 200 with an explicit "temporarily unavailable" alert |
+| Any other unhandled server error | Next.js default error screen | branded `src/app/error.tsx` boundary with *Try again* |
+| Unknown route / unknown job slug | Next.js default 404 | branded `src/app/not-found.tsx` |
+
+Recovery steps (operator):
+
+1. Sign in to Aiven and restore or recreate the MySQL service (a free-plan
+   service that has been removed must be created again).
+2. Copy the new connection URI and CA certificate.
+3. Update the Vercel Production environment variables `DATABASE_URL` and
+   `DATABASE_SSL_CA` (`npx vercel env rm`/`env add`, or the dashboard).
+4. Run `npm run db:deploy` against the new database, then `npm run db:status`.
+5. Confirm `GET /api/v1/health` returns 200 with `data.database === "up"`, then
+   re-run `SMOKE_BASE_URL=https://nexora-three-woad.vercel.app npm run smoke`
+   (expect 7/7) and the browser acceptance checks.
 
 1. Provision a managed MySQL 8 database with a least-privilege user, run
    `npm run db:deploy` once against it, and set `DATABASE_URL` for Production.

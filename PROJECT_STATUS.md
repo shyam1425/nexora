@@ -1,8 +1,8 @@
 # NEXORA — Project Status
 
-**Last updated:** 2026-09-25
+**Last updated:** 2026-09-26
 **Current phase:** Production MVP — core recruitment workflow implementation
-**Overall status:** Production MVP live at `https://nexora-three-woad.vercel.app` with automatic GitHub→Vercel deployment from `main`; remaining gaps are operator-credential features (SMTP delivery, live S3-compatible bucket)
+**Overall status:** Production MVP live at `https://nexora-three-woad.vercel.app` with automatic GitHub→Vercel deployment from `main`; remaining gaps are operator-credential features (SMTP delivery, live S3-compatible bucket) and, since 2026-09-26, an unavailable production database: the Aiven MySQL service hostname no longer resolves, so `/api/v1/health` reports 503 and database-backed pages render an explicit "temporarily unavailable" state instead of an unexplained 500
 
 ## Completed and verified
 
@@ -53,6 +53,8 @@
 | Vercel remote build | PASS — Vercel's remote Linux builder ran `next build` for this repository end to end (`Build Completed in /vercel/output`, 40s, every serverless function created) |
 | Vercel build requirements | VERIFIED — `DATABASE_URL`, `DATABASE_SSL_CA`, `SESSION_SECRET`, and `APP_URL` configured as Production environment variables |
 | Production database (Aiven MySQL) | PASS — Aiven for MySQL 8.4.8 service is provisioned, authenticated, TLS verified, and migrated (`nexora-mysql-shyam-1209.k.aivencloud.com:18737`, database `defaultdb`, user `avnadmin`, CA at `certs/aiven-ca.pem`). Applied migration `20260924081941_init`, schema is up-to-date, verified by live query and transactional read/write from production serverless functions |
+| Production database outage (2026-09-26) | **BLOCKED (external)** — the Aiven service hostname `nexora-mysql-shyam-1209.k.aivencloud.com` returns NXDOMAIN from the Windows resolver, from Google DNS (`dns.google` → status 3) and from Cloudflare (`one.one.one.one`), while the `aivencloud.com` apex resolves normally: the service is gone, not a local DNS fault. Observed production impact before hardening: `/api/v1/health` → 503 `SERVICE_UNAVAILABLE` and `/careers` + `/careers/*` → 500. Restoring service needs Aiven account access (recreate the service, then update Vercel `DATABASE_URL`/`DATABASE_SSL_CA`); no application change can restore connectivity. |
+| Public-page dependency-outage handling | FIXED (2026-09-26), locally verified — public database-backed routes no longer surface an unexplained 500 when the database is unreachable: `/careers` and `/careers/[slug]` render an explicit "temporarily unavailable" alert through `queryOrUnavailable` (`src/lib/query-fallback.ts`), the failure is logged as structured JSON (`careers_listing_unavailable`, `job_detail_unavailable`), and `/api/v1/health` still returns 503 so monitoring keeps working. A branded `src/app/error.tsx` boundary and `src/app/not-found.tsx` page replace Next.js's default error/404 screens. Verified on the built standalone app with a clean environment: unreachable database → `/careers` 200 with the unavailable alert, `/careers/does-not-exist` 200 with the alert, `/api/v1/health` 503, 0 credential leaks in the logs; healthy database → `/careers` 200 with the normal listing, 0 error lines, and `/careers/<unknown-slug>` still 404 with the branded page (the fallback does not mask real 404s). |
 | Live S3/MinIO bucket | NOT VERIFIED — adapter covered by unit and socket-level tests; needs real credentials |
 | Client address trust | PASS — forged `X-Forwarded-For`/`X-Real-IP` neither widens rate-limit buckets nor reaches `AuditLog.ipAddress` (verified against the standalone server); trusted-proxy mode verified with `TRUST_PROXY=true` |
 | End-to-end browser acceptance | PASS — 8/8 checks automated with headless browser against `https://nexora-three-woad.vercel.app`: anonymous redirect, candidate registration, DB persistence in Aiven MySQL, active login, role dashboard, RBAC boundary enforcement, mobile responsiveness (375x667), and logout session revocation |
@@ -71,11 +73,13 @@
 ## Blocked / external configuration
 
 - GitHub: the account named in the deployment brief, `shyam1425i`, does not exist (GitHub API 404 for the user and for the repository). The repository is therefore published on the authenticated account as `https://github.com/shyam1425/nexora` (public, operator-confirmed), with `main` tracking `origin/main`.
+- **Production database (2026-09-26):** the Aiven MySQL service behind production no longer exists in DNS (NXDOMAIN on three independent resolvers). Operator action required: sign in to Aiven, restore or recreate the MySQL service, then update the Vercel Production variables `DATABASE_URL` and `DATABASE_SSL_CA` from the new connection details, run `npm run db:deploy` against it, and re-run the smoke and browser checks.
 - Production custom domain, SMTP credentials, and private object-storage credentials are not configured in this workspace.
 - Payroll processing, tax automation, biometric attendance, WhatsApp/SMS, AI matching, and billing are intentionally post-MVP or pending explicit scope approval.
 
 ## Next highest-priority tasks
 
-1. Configure `STORAGE_DRIVER=s3` (uploads, since Vercel's filesystem is read-only apart from `/tmp`) and `EMAIL_DRIVER=smtp` (email) on the deployed environment, then verify document upload/download authorization and real email delivery.
+1. **Restore the production database** (Aiven service gone from DNS): recreate the service in the Aiven console, set the new `DATABASE_URL`/`DATABASE_SSL_CA` for the Vercel Production environment, run `npm run db:deploy`, and confirm `/api/v1/health` returns 200 before re-running the deployed smoke suite and browser checks.
+2. Configure `STORAGE_DRIVER=s3` (uploads, since Vercel's filesystem is read-only apart from `/tmp`) and `EMAIL_DRIVER=smtp` (email) on the deployed environment, then verify document upload/download authorization and real email delivery.
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md), [API.md](./API.md), [SECURITY.md](./SECURITY.md), and [DEPLOYMENT.md](./DEPLOYMENT.md) for the current implementation contract.
